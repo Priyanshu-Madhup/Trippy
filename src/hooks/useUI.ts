@@ -4,8 +4,6 @@ import type { Trip } from '@/types'
 export interface UIContextValue {
   openCreateTrip: () => void
   openEditTrip: (trip: Trip) => void
-  /** Opens the quick-upload sheet; pass a trip to skip the trip picker. */
-  openUpload: (tripId?: string) => void
 }
 
 export const UIContext = createContext<UIContextValue | null>(null)

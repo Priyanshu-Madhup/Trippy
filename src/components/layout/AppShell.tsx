@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { TripFormModal } from '@/components/trips/TripFormModal'
-import { QuickUploadDialog } from '@/components/upload/QuickUploadDialog'
 import { UIContext, type UIContextValue } from '@/hooks/useUI'
 import { UploadProvider } from '@/hooks/useUpload'
 import { enrichMissingVisuals } from '@/services/processing'
@@ -17,13 +16,11 @@ import type { Trip } from '@/types'
 export function AppShell() {
   const location = useLocation()
   const [tripModal, setTripModal] = useState<{ open: boolean; trip: Trip | null }>({ open: false, trip: null })
-  const [upload, setUpload] = useState<{ open: boolean; tripId?: string }>({ open: false })
 
   const ui = useMemo<UIContextValue>(
     () => ({
       openCreateTrip: () => setTripModal({ open: true, trip: null }),
       openEditTrip: (trip) => setTripModal({ open: true, trip }),
-      openUpload: (tripId) => setUpload({ open: true, tripId }),
     }),
     [],
   )
@@ -63,11 +60,6 @@ export function AppShell() {
           open={tripModal.open}
           trip={tripModal.trip}
           onOpenChange={(open) => setTripModal((s) => ({ ...s, open }))}
-        />
-        <QuickUploadDialog
-          open={upload.open}
-          tripId={upload.tripId}
-          onOpenChange={(open) => setUpload((s) => ({ ...s, open }))}
         />
       </UploadProvider>
     </UIContext.Provider>

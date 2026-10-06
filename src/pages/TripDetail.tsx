@@ -157,15 +157,6 @@ export default function TripDetail() {
             </div>
           ) : (
             <>
-              {all.some((t) => t.processing_status === 'completed') ? (
-                <section className="mb-12" aria-labelledby="itinerary-heading">
-                  <h2 id="itinerary-heading" className="mb-3 text-xl font-semibold tracking-tight sm:text-2xl">
-                    Itinerary
-                  </h2>
-                  <TripTimeline tickets={all} />
-                </section>
-              ) : null}
-
               <section aria-labelledby="tickets-heading">
                 <div className="mb-4 flex items-end justify-between gap-3">
                   <h2 id="tickets-heading" className="text-xl font-semibold tracking-tight sm:text-2xl">
@@ -205,6 +196,15 @@ export default function TripDetail() {
                   </div>
                 )}
               </section>
+
+              {all.some((t) => t.processing_status === 'completed') ? (
+                <section className="mt-12" aria-labelledby="itinerary-heading">
+                  <h2 id="itinerary-heading" className="mb-3 text-xl font-semibold tracking-tight sm:text-2xl">
+                    Itinerary
+                  </h2>
+                  <TripTimeline tickets={all} />
+                </section>
+              ) : null}
 
               <div id="trip-upload" className="mt-10 lg:hidden">
                 <UploadDropzone variant="compact" onFiles={onFiles} title="Add another ticket" />

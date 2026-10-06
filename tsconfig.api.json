@@ -14,5 +14,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["api", "src/types/extraction.ts"]
+  "include": ["api", "src/types/extraction.ts", "src/types/place.ts"]
 }

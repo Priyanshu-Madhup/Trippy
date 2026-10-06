@@ -29,11 +29,6 @@ export async function createTrip(input: CreateTripInput): Promise<Trip> {
 /** Placeholder name for trips created directly from an upload; replaced once AI finds the destination. */
 export const AUTO_TRIP_NAME = 'New trip'
 
-/** A trip with no user input at all — name, destination, dates and cover all come from the tickets. */
-export function createAutoTrip(): Promise<Trip> {
-  return backend.createTrip({ name: AUTO_TRIP_NAME, destination: null, destination_source: 'ai' })
-}
-
 export function updateTrip(id: string, patch: TripPatch): Promise<Trip> {
   return backend.updateTrip(id, patch)
 }

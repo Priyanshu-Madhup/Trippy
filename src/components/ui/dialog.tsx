@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode, type RefObject } from 'react'
+import { useBackToClose } from '@/hooks/useBackToClose'
 import { cn } from '@/lib/utils'
 
 export const Dialog = DialogPrimitive.Root
@@ -26,6 +27,7 @@ export function DialogContent({
   hideHeader?: boolean
   size?: 'sm' | 'md' | 'lg'
 }) {
+  const closeRef = useRef<HTMLButtonElement>(null)
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="overlay fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
@@ -51,6 +53,7 @@ export function DialogContent({
             )}
           </div>
           <DialogPrimitive.Close
+            ref={closeRef}
             className="-mr-2 -mt-1 grid size-9 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink"
             aria-label="Close"
           >
@@ -58,7 +61,14 @@ export function DialogContent({
           </DialogPrimitive.Close>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <BackButtonCloses target={closeRef} />
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   )
+}
+
+/** Rendered inside Radix's Content, which only mounts while open — so the phone back button closes the dialog. */
+function BackButtonCloses({ target }: { target: RefObject<HTMLButtonElement | null> }) {
+  useBackToClose(true, () => target.current?.click())
+  return null
 }

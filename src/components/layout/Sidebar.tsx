@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { House, Map, Plus, Settings, Upload, UserRound } from 'lucide-react'
+import { House, Map, Plus, Settings, UserRound } from 'lucide-react'
 import { Logo } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from './UserMenu'
@@ -15,7 +15,7 @@ const NAV = [
 ]
 
 export function Sidebar() {
-  const { openCreateTrip, openUpload } = useUI()
+  const { openCreateTrip } = useUI()
   return (
     <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col border-r border-line bg-bg-elevated/70 px-4 pb-4 pt-6 backdrop-blur-xl lg:flex">
       <NavLink to="/app" className="mb-8 px-2 outline-none" aria-label="Home">
@@ -45,9 +45,6 @@ export function Sidebar() {
       <div className="mt-8 space-y-2 px-1">
         <Button className="w-full justify-start" onClick={openCreateTrip}>
           <Plus aria-hidden /> New trip
-        </Button>
-        <Button variant="secondary" className="w-full justify-start" onClick={() => openUpload()}>
-          <Upload aria-hidden /> Upload ticket
         </Button>
       </div>
 

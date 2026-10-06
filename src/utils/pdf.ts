@@ -77,3 +77,37 @@ export async function renderPdfPages(blob: Blob, maxPages = 2, targetWidth = 150
     close()
   }
 }
+
+/**
+ * Renders every page (up to `maxPages`) to an object URL, calling `onPage` as
+ * each finishes so the viewer can show page 1 immediately. Works on mobile
+ * browsers, which can't display PDFs inside an iframe.
+ */
+export async function renderPdfForViewing(
+  blob: Blob,
+  options: { width: number; maxPages?: number; onPage: (url: string, index: number, total: number) => void; signal?: { cancelled: boolean } },
+): Promise<void> {
+  const { doc, close } = await open(blob)
+  const total = Math.min(doc.numPages, options.maxPages ?? 40)
+  try {
+    for (let i = 1; i <= total; i++) {
+      if (options.signal?.cancelled) return
+      const page = await doc.getPage(i)
+      const base = page.getViewport({ scale: 1 })
+      const viewport = page.getViewport({ scale: Math.min(4, options.width / base.width) })
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(viewport.width)
+      canvas.height = Math.round(viewport.height)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      await page.render({ canvasContext: ctx, canvas, viewport }).promise
+      const out = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/png'))
+      if (!out || options.signal?.cancelled) return
+      options.onPage(URL.createObjectURL(out), i - 1, total)
+    }
+  } finally {
+    close()
+  }
+}
