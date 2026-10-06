@@ -4,8 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { MapPin, Plus, SearchX } from 'lucide-react'
 import { TripHero, TripHeroSkeleton } from '@/components/trips/TripHero'
-import { TripTimeline, scrollToTicket } from '@/components/trips/TripTimeline'
-import { TicketCard, type TicketHandlers } from '@/components/tickets/TicketCard'
+import { EXPAND_TICKET_EVENT, TripTimeline, scrollToTicket } from '@/components/trips/TripTimeline'
+import { CollapsibleTicket } from '@/components/tickets/CollapsibleTicket'
+import type { TicketHandlers } from '@/components/tickets/TicketCard'
 import { TicketCardSkeleton } from '@/components/tickets/StatusCards'
 import { TicketViewer, downloadTicket } from '@/components/tickets/TicketViewer'
 import { TicketEditModal } from '@/components/tickets/TicketEditModal'
@@ -46,6 +47,20 @@ export default function TripDetail() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<FilterKey>('all')
   const [sort, setSort] = useState<SortKey>('date')
+  // Cards start compact; tapping one (or its itinerary entry) expands it.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const toggle = (id: string, open: boolean) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (open) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  useEffect(() => {
+    const onExpand = (e: Event) => toggle((e as CustomEvent<string>).detail, true)
+    window.addEventListener(EXPAND_TICKET_EVENT, onExpand)
+    return () => window.removeEventListener(EXPAND_TICKET_EVENT, onExpand)
+  }, [])
 
   // Uploads for this trip. Tickets that are mid-pipeline render as live processing cards.
   const queue = items.filter((i) => i.tripId === tripId && !(i.stage === 'failed' && i.ticketId))
@@ -173,10 +188,17 @@ export default function TripDetail() {
                 </div>
 
                 {visible.length ? (
-                  <motion.div layout className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <motion.div layout className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
                     <AnimatePresence mode="popLayout">
-                      {visible.map((t) => (
-                        <TicketCard key={t.id} ticket={t} handlers={handlers} />
+                      {visible.map((t, i) => (
+                        <CollapsibleTicket
+                          key={t.id}
+                          ticket={t}
+                          handlers={handlers}
+                          expanded={expanded.has(t.id)}
+                          onToggle={toggle}
+                          index={i}
+                        />
                       ))}
                     </AnimatePresence>
                   </motion.div>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { ArrowRight, Copy, Download, Ellipsis, Info, Pencil, RotateCw, Trash2, type LucideIcon } from 'lucide-react'
+import { ArrowRight, ChevronUp, Copy, Download, Ellipsis, Info, Pencil, RotateCw, Trash2, type LucideIcon } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ProviderLogo } from '@/components/common/ProviderLogo'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,8 @@ export interface TicketHandlers {
   onDelete: (ticket: Ticket) => void
   onRetry: (ticket: Ticket) => void
   onDownload?: (ticket: Ticket) => void
+  /** When set, the card shows a "collapse" control (used by the expandable list). */
+  onCollapse?: (ticket: Ticket) => void
 }
 
 /** Label / value pair. Renders nothing when the value is missing — we never show invented data. */
@@ -116,13 +118,10 @@ export function TicketShell({
   const hasFile = !!ticket.file_path
   return (
     <motion.article
-      id={`ticket-${ticket.id}`}
-      layout="position"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className={cn('relative scroll-mt-24 overflow-hidden rounded-[26px] border border-line bg-surface shadow-card', className)}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+      className={cn('relative overflow-hidden rounded-[26px] border border-line bg-surface shadow-card', className)}
       aria-label={ticket.title ?? ticket.file_name ?? 'Ticket'}
     >
       {accent ? <div className="h-1 w-full" style={{ background: accent }} aria-hidden /> : null}
@@ -145,7 +144,19 @@ export function TicketShell({
           {openLabel}
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </button>
-        <TicketMenu ticket={ticket} handlers={handlers} />
+        <div className="flex items-center gap-0.5">
+          {handlers.onCollapse ? (
+            <button
+              type="button"
+              onClick={() => handlers.onCollapse?.(ticket)}
+              className="grid size-10 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink"
+              aria-label="Collapse ticket"
+            >
+              <ChevronUp className="size-[18px]" />
+            </button>
+          ) : null}
+          <TicketMenu ticket={ticket} handlers={handlers} />
+        </div>
       </div>
     </motion.article>
   )

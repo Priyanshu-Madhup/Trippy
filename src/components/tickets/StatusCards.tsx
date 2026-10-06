@@ -10,11 +10,9 @@ import type { Ticket } from '@/types'
 export function FailedTicketCard({ ticket, handlers }: { ticket: Ticket; handlers: TicketHandlers }) {
   return (
     <motion.article
-      id={`ticket-${ticket.id}`}
-      layout="position"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="scroll-mt-24 rounded-[26px] border border-danger/20 bg-surface p-5 shadow-card"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="rounded-[26px] border border-danger/20 bg-surface p-5 shadow-card"
     >
       <div className="flex items-start gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-danger-bg text-danger">
@@ -52,8 +50,6 @@ export function PendingTicketCard({ ticket, handlers }: { ticket: Ticket; handle
   const stale = isStale(ticket)
   return (
     <motion.article
-      id={`ticket-${ticket.id}`}
-      layout="position"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="rounded-[26px] border border-line bg-surface p-5 shadow-card"

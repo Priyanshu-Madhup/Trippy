@@ -65,14 +65,21 @@ function buildEvents(tickets: Ticket[]): TimelineEvent[] {
   return events.sort((a, b) => `${a.date ?? '9999'}${a.time ?? '99'}`.localeCompare(`${b.date ?? '9999'}${b.time ?? '99'}`))
 }
 
+export const EXPAND_TICKET_EVENT = 'trippy:expand-ticket'
+
+/** Expands the ticket's card (it may be collapsed), then scrolls to and highlights it. */
 export function scrollToTicket(id: string) {
-  const el = document.getElementById(`ticket-${id}`)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  el.animate(
-    [{ boxShadow: '0 0 0 0 rgb(232 178 106 / 0)' }, { boxShadow: '0 0 0 6px rgb(232 178 106 / 0.55)' }, { boxShadow: '0 0 0 0 rgb(232 178 106 / 0)' }],
-    { duration: 1400, easing: 'ease-out', delay: 350 },
-  )
+  window.dispatchEvent(new CustomEvent(EXPAND_TICKET_EVENT, { detail: id }))
+  // Give the expand animation a moment so we land on the card's final position.
+  setTimeout(() => {
+    const el = document.getElementById(`ticket-${id}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el.animate(
+      [{ boxShadow: '0 0 0 0 rgb(232 178 106 / 0)' }, { boxShadow: '0 0 0 6px rgb(232 178 106 / 0.55)' }, { boxShadow: '0 0 0 0 rgb(232 178 106 / 0)' }],
+      { duration: 1400, easing: 'ease-out', delay: 350 },
+    )
+  }, 380)
 }
 
 /** Vertical itinerary grouped by day. Tapping an event jumps to its ticket card. */
