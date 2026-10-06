@@ -30,7 +30,8 @@ interface UploadContextValue {
 }
 
 const UploadContext = createContext<UploadContextValue | null>(null)
-const CONCURRENCY = 2
+// One at a time keeps us under Groq's tokens-per-minute limit on the free tier.
+const CONCURRENCY = 1
 
 type Job =
   | { kind: 'upload'; key: string; tripId: string; file: File }

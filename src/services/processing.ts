@@ -22,6 +22,7 @@ function friendlyError(err: unknown): string {
     if (err.code === 'unreadable') return "Couldn't read this document."
     if (err.code === 'ai_not_configured') return 'AI extraction isn’t configured yet (missing GROQ_API_KEY).'
     if (err.code === 'payload_too_large') return 'This document is too large to analyse.'
+    if (err.status === 429) return 'The AI is busy right now — tap Retry in a minute.'
     if (err.status === 401) return 'Your session expired — sign in again and retry.'
     if (err.status === 0) return 'You appear to be offline. Retry when you’re connected.'
     return err.message || "Couldn't read this document."

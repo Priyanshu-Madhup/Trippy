@@ -12,7 +12,8 @@ import { TEXT_MODEL, VISION_MODEL } from './_lib/groq.js'
 import { HttpError, errorResponse, json, readJson } from './_lib/http.js'
 import { assertReadable, classifyDocument, extractByType, transcribeImages } from './_lib/pipeline.js'
 
-const MAX_TEXT = 24_000
+// Key details are on the first page; later pages are mostly T&Cs. Fewer tokens = fewer rate limits.
+const MAX_TEXT = 12_000
 const MAX_IMAGES = 3
 const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/
 

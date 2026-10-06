@@ -29,10 +29,45 @@ export function assertReadable(rawText: string): void {
   }
 }
 
+/**
+ * Keyword scoring for the obvious cases, so most uploads skip the LLM
+ * classification call (halves tokens per upload and avoids rate limits).
+ * Returns null when the document is ambiguous — the model decides then.
+ */
+const SIGNALS: Record<Exclude<DocumentType, 'unknown' | 'generic_travel_document'>, RegExp[]> = {
+  flight: [
+    /\bpnr\b/i,
+    /\bflight\b/i,
+    /\bairlines?\b|\bairways\b|\bair india\b|\bindigo\b|\bemirates\b/i,
+    /\bboarding\b/i,
+    /\bterminal\b/i,
+    /\bairport\b/i,
+    /\b(cabin|check-in) baggage\b/i,
+    /\b[A-Z0-9]{2}\s?\d{2,4}\b/,
+  ],
+  hotel: [/\bcheck-?in\b/i, /\bcheck-?out\b/i, /\bhotel\b|\bresort\b|\bhostel\b|\bapartment\b/i, /\broom\b/i, /\bnights?\b/i, /\bguests?\b/i],
+  train: [/\btrain\b/i, /\bcoach\b/i, /\bberth\b/i, /\birctc\b|\brailways?\b|\beurostar\b|\bamtrak\b|\bsncf\b/i, /\bstation\b/i, /\bplatform\b/i],
+  bus: [/\bbus\b/i, /\bboarding point\b/i, /\bdropping point\b/i, /\bredbus\b|\bflixbus\b|\bvolvo\b|\bsleeper\b/i, /\boperator\b/i],
+  restaurant: [/\brestaurant\b/i, /\btable\b/i, /\breservation\b/i, /\bparty of\b|\bdiners?\b/i, /\bdinner\b|\blunch\b/i],
+  activity: [/\badmission\b/i, /\bentry\b/i, /\bmuseum\b|\btour\b|\bexperience\b|\battraction\b/i, /\bevent\b|\bshow\b|\bconcert\b/i, /\bvisit\b/i],
+}
+
+export function quickClassify(rawText: string): { type: DocumentType; confidence: number } | null {
+  const head = rawText.slice(0, 5000)
+  const scores = Object.entries(SIGNALS)
+    .map(([type, patterns]) => ({ type: type as DocumentType, score: patterns.filter((re) => re.test(head)).length }))
+    .sort((a, b) => b.score - a.score)
+  const [top, second] = scores
+  if (top.score >= 4 && top.score >= second.score * 2) return { type: top.type, confidence: 0.9 }
+  return null
+}
+
 export async function classifyDocument(
   rawText: string,
   fileName: string,
 ): Promise<{ type: DocumentType; confidence: number }> {
+  const quick = quickClassify(rawText)
+  if (quick) return quick
   const out = await structuredCompletion({
     system: CLASSIFY_SYSTEM,
     user: documentUserMessage(fileName, rawText),
