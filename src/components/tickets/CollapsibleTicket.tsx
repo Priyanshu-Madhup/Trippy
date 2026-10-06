@@ -97,7 +97,12 @@ function CompactTicket({ ticket, onClick }: { ticket: Ticket; onClick: () => voi
       ? `${journey.first.departure.airport_code} → ${journey.last.arrival.airport_code}`
       : null
   const title = codes ?? view.title
-  const meta = [codes ? view.title : view.meta.label, view.provider && view.provider !== view.title ? view.provider : null]
+  const leg = ticket.structured_data?.leg
+  const meta = [
+    leg === 'return' ? 'Return' : leg === 'outbound' ? 'Outbound' : null,
+    codes ? view.title : view.meta.label,
+    view.provider && view.provider !== view.title ? view.provider : null,
+  ]
     .filter(Boolean)
     .join(' · ')
 

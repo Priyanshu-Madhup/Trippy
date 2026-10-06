@@ -194,6 +194,8 @@ export interface DocumentExtraction<T extends DocumentType = DocumentType> {
   details: DetailsByType[T]
   /** Fields the model returned that were dropped because they don't appear in the source text. */
   ungrounded_fields: string[]
+  /** Set when one document was split into several journeys (outbound + return). */
+  leg?: 'outbound' | 'return'
 }
 
 // ─── API contracts ──────────────────────────────────────────────────

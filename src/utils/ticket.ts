@@ -93,20 +93,34 @@ function stamp(date: string | null, time: string | null): number | null {
   return Number.isNaN(t) ? null : t
 }
 
-/** Splits an itinerary into outbound / return legs at the longest gap (> 24h). */
+function samePlace(a: { airport_code: string | null; city: string | null }, b: { airport_code: string | null; city: string | null }) {
+  if (a.airport_code && b.airport_code) return a.airport_code === b.airport_code
+  return !!a.city && !!b.city && a.city.toLowerCase() === b.city.toLowerCase()
+}
+
+/**
+ * Splits an itinerary into outbound / return legs. A return exists when there
+ * is a stay of more than 24h between flights, or when the journey ends where it
+ * started (same-day returns) — the split is at the longest gap.
+ */
 export function flightJourney(data: FlightData | null): FlightJourney | null {
   const segs = data?.segments ?? []
   if (segs.length === 0) return null
-  let split = segs.length
-  let longest = 0
+  let longestGap = -1
+  let longestAt = -1
   for (let i = 0; i < segs.length - 1; i++) {
     const a = stamp(segs[i].arrival.date, segs[i].arrival.time)
     const b = stamp(segs[i + 1].departure.date, segs[i + 1].departure.time)
-    if (a !== null && b !== null && b - a > longest) {
-      longest = b - a
-      if (b - a > 24 * 3600_000) split = i + 1
+    if (a !== null && b !== null && b - a > longestGap) {
+      longestGap = b - a
+      longestAt = i
     }
   }
+  const roundTrip = segs.length >= 2 && samePlace(segs[0].departure, segs[segs.length - 1].arrival)
+  let split = segs.length
+  if (longestAt >= 0 && (longestGap > 24 * 3600_000 || (roundTrip && longestGap > 3 * 3600_000))) split = longestAt + 1
+  else if (roundTrip && longestAt < 0) split = Math.ceil(segs.length / 2) // no times printed: assume symmetric
+
   const outbound = segs.slice(0, split)
   const inbound = segs.slice(split)
   return {
@@ -116,6 +130,40 @@ export function flightJourney(data: FlightData | null): FlightJourney | null {
     last: outbound[outbound.length - 1],
     stops: outbound.slice(0, -1).map((s) => s.arrival.airport_code ?? s.arrival.city ?? '').filter(Boolean),
   }
+}
+
+/**
+ * One document can hold several journeys (e.g. an e-ticket with the outbound
+ * and the return flight). Returns one extraction per journey so each becomes
+ * its own ticket card. Non-flight / one-way documents come back unchanged.
+ */
+export function splitExtraction(ext: DocumentExtraction): DocumentExtraction[] {
+  if (ext.document_type !== 'flight') return [ext]
+  const data = ext.details as FlightData
+  const journey = flightJourney(data)
+  if (!journey || journey.inbound.length === 0) return [ext]
+
+  const leg = (segments: FlightSegment[], which: 'outbound' | 'return'): DocumentExtraction => {
+    const first = segments[0]
+    const last = segments[segments.length - 1]
+    const from = first.departure.city ?? first.departure.airport_code
+    const to = last.arrival.city ?? last.arrival.airport_code
+    return {
+      ...ext,
+      leg: which,
+      title: from && to ? `${from} → ${to}` : ext.title,
+      summary: ext.summary,
+      start_date: first.departure.date ?? null,
+      end_date: last.arrival.date ?? first.departure.date ?? null,
+      primary_location: {
+        city: last.arrival.city,
+        country: last.arrival.country,
+        country_code: which === 'outbound' ? ext.primary_location.country_code : null,
+      },
+      details: { ...data, segments },
+    }
+  }
+  return [leg(journey.outbound, 'outbound'), leg(journey.inbound, 'return')]
 }
 
 // ─── Columns derived from an extraction ─────────────────────────────

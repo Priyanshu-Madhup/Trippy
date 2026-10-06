@@ -265,7 +265,8 @@ export const demoBackend: Backend = {
       db.tickets = db.tickets.filter((t) => t.id !== id)
       db.places = db.places.filter((p) => p.ticket_id !== id)
     })
-    if (path) await blobStore.delete(path).catch(() => undefined)
+    // A round-trip document backs two tickets — keep the file while one still uses it.
+    if (path && !load().tickets.some((t) => t.file_path === path)) await blobStore.delete(path).catch(() => undefined)
   },
 
   async listPlaces(tripId) {

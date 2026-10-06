@@ -8,7 +8,8 @@
 import type { DocumentExtraction, FlightData, HotelData, ActivityData, BusData, Ticket, TicketPatch, Trip, TripPatch, TrainData } from '@/types'
 import type { TripInsightRequest, TripInsightResponse } from '@/types/extraction'
 import { countryCodeFromName } from '@/lib/utils'
-import { deriveTicketColumns } from '@/utils/ticket'
+import { deriveTicketColumns, splitExtraction } from '@/utils/ticket'
+import { uuid } from '@/lib/utils'
 import { extractDocument } from './ai'
 import { ApiError, apiFetch } from './api'
 import { backend, type PlaceInput } from './backend'
@@ -106,6 +107,48 @@ export async function resolveTicketVisuals(ext: DocumentExtraction): Promise<Tic
 
 // ─── Processing ─────────────────────────────────────────────────────
 
+/**
+ * Creates / updates the extra tickets produced from one document (e.g. the
+ * return flight). Siblings are found by their shared file, so re-reading a
+ * document updates the existing pair instead of duplicating it.
+ */
+async function syncSiblingTickets(ticket: Ticket, parts: DocumentExtraction[], visuals: TicketPatch, rawText: string) {
+  const siblings = ticket.file_path
+    ? (await backend.listTickets(ticket.trip_id)).filter((t) => t.id !== ticket.id && t.file_path === ticket.file_path)
+    : []
+
+  for (const [i, part] of parts.entries()) {
+    const row: TicketPatch = {
+      ...deriveTicketColumns(part),
+      ...visuals,
+      structured_data: part,
+      raw_text: rawText,
+      processing_status: 'completed',
+      error_message: null,
+    }
+    const existing = siblings[i]
+    if (existing) {
+      await backend.updateTicket(existing.id, row)
+    } else {
+      await backend.createTicket({
+        id: uuid(),
+        trip_id: ticket.trip_id,
+        file_path: ticket.file_path,
+        file_name: ticket.file_name,
+        file_type: ticket.file_type,
+        mime_type: ticket.mime_type,
+        file_size: 0, // the file is already counted on the first ticket
+        ...row,
+      })
+    }
+  }
+  // The document no longer yields as many journeys (e.g. user re-read it): drop stale rows, keep the file.
+  for (const stale of siblings.slice(parts.length)) {
+    await backend.updateTicket(stale.id, { file_path: null }).catch(() => undefined)
+    await backend.deleteTicket(stale.id).catch(() => undefined)
+  }
+}
+
 export async function processTicket(
   ticket: Ticket,
   options: { file?: Blob; onStage?: (stage: ProcessingStage) => void } = {},
@@ -131,17 +174,20 @@ export async function processTicket(
 
     stage('building')
     const extraction = result.extraction
-    const columns = deriveTicketColumns(extraction)
     const visuals = await resolveTicketVisuals(extraction)
+    const rawText = result.raw_text.slice(0, 20_000)
+    // A round-trip e-ticket becomes two tickets (outbound + return) sharing one file.
+    const [primary, ...extra] = splitExtraction(extraction)
 
     const updated = await backend.updateTicket(ticket.id, {
-      ...columns,
+      ...deriveTicketColumns(primary),
       ...visuals,
-      structured_data: extraction,
-      raw_text: result.raw_text.slice(0, 20_000),
+      structured_data: primary,
+      raw_text: rawText,
       processing_status: 'completed',
       error_message: null,
     })
+    await syncSiblingTickets(ticket, extra, visuals, rawText)
 
     stage('finishing')
     await updateTripFromTicket(ticket.trip_id).catch((err) => console.warn('[trip] update failed', err))

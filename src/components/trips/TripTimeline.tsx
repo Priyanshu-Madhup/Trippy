@@ -44,7 +44,7 @@ function buildEvents(tickets: Ticket[]): TimelineEvent[] {
       ticket: t,
       date: t.travel_date,
       time: t.start_time,
-      label: view.meta.label,
+      label: t.structured_data?.leg === 'return' ? 'Return flight' : view.meta.label,
       title: t.document_type === 'flight' || t.document_type === 'train' || t.document_type === 'bus' ? (route ?? view.title) : view.title,
       detail,
     })

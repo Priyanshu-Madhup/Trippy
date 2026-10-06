@@ -77,7 +77,11 @@ export function FlightCard({ ticket, handlers }: { ticket: Ticket; handlers: Tic
           {depDate ? formatPass(depDate) : 'Date not provided'}
           {depDate ? <span className="ml-2 font-medium tracking-normal text-muted">{formatWeekday(depDate)}</span> : null}
         </span>
-        {returnLeg ? (
+        {ticket.structured_data?.leg ? (
+          <span className="rounded-full bg-surface-2 px-2.5 py-1 font-semibold text-ink-2">
+            {ticket.structured_data.leg === 'return' ? 'Return' : 'Outbound'}
+          </span>
+        ) : returnLeg ? (
           <span className="rounded-full bg-surface-2 px-2.5 py-1 font-medium text-ink-2">
             Return {formatShort(returnLeg.departure.date)} · {returnLeg.departure.airport_code ?? ''}→{journey?.inbound.at(-1)?.arrival.airport_code ?? ''}
           </span>

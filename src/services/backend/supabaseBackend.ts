@@ -215,7 +215,10 @@ export const supabaseBackend: Backend = {
     const { error } = await sb().from('tickets').delete().eq('id', id)
     fail(error)
     const path = (data as { file_path: string | null } | null)?.file_path
-    if (path) await sb().storage.from(TICKETS_BUCKET).remove([path])
+    if (!path) return
+    // A round-trip document backs two tickets — keep the file while one still uses it.
+    const { count } = await sb().from('tickets').select('id', { count: 'exact', head: true }).eq('file_path', path)
+    if (!count) await sb().storage.from(TICKETS_BUCKET).remove([path])
   },
 
   // ─── Places ───────────────────────────────────────────────────────
