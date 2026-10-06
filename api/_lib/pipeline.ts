@@ -8,9 +8,9 @@
  *   buildExtraction()   — normalise + drop anything not grounded in the source text
  */
 import { DOCUMENT_TYPES, type DocumentExtraction, type DocumentType } from '../../src/types/extraction.js'
-import { structuredCompletion, visionTranscribe } from './groq.js'
+import { FALLBACK_TEXT_MODEL, structuredCompletion, visionTranscribe } from './groq.js'
 import { HttpError } from './http.js'
-import { buildExtraction, clamp01 } from './normalize.js'
+import { buildExtraction, clamp01, isEmptyExtraction } from './normalize.js'
 import { CLASSIFY_SYSTEM, OCR_PROMPT, documentUserMessage, extractionSystem } from './prompts.js'
 import { CLASSIFY_SCHEMA, extractionSchema } from './schemas.js'
 
@@ -87,13 +87,27 @@ export async function extractByType(
   fileName: string,
   classifyConfidence = 1,
 ): Promise<DocumentExtraction> {
-  const raw = await structuredCompletion({
+  const request = {
     system: extractionSystem(type),
     user: documentUserMessage(fileName, rawText),
     schemaName: `${type}_extraction`,
     schema: extractionSchema(type),
-  })
-  return buildExtraction(type, raw, rawText, classifyConfidence)
+  }
+  let extraction = buildExtraction(type, await structuredCompletion(request), rawText, classifyConfidence)
+
+  // Malformed answers (wrong shape, empty details) get one more try on the backup model.
+  if (isEmptyExtraction(extraction)) {
+    console.warn(`[extract] empty ${type} details — retrying with ${FALLBACK_TEXT_MODEL}`)
+    try {
+      const retry = buildExtraction(type, await structuredCompletion({ ...request, model: FALLBACK_TEXT_MODEL }), rawText, classifyConfidence)
+      if (!isEmptyExtraction(retry)) extraction = retry
+    } catch {
+      /* keep the first result */
+    }
+  }
+  // Still nothing usable: never present it as a confident, finished card.
+  if (isEmptyExtraction(extraction)) extraction = { ...extraction, confidence: Math.min(extraction.confidence, 0.4) }
+  return extraction
 }
 
 export const extractFlight = (text: string, fileName: string, c?: number) => extractByType('flight', text, fileName, c)

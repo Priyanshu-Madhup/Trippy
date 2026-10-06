@@ -51,6 +51,18 @@ export function FlightCard({ ticket, handlers }: { ticket: Ticket; handlers: Tic
       </header>
 
       <ReviewNotice ticket={ticket} />
+      {!journey && ticket.file_path ? (
+        <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-xl bg-warning-bg px-3 py-2.5 text-[13px] text-warning">
+          <span>Some details couldn’t be identified.</span>
+          <button
+            type="button"
+            onClick={() => handlers.onRetry(ticket)}
+            className="shrink-0 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-ink shadow-soft"
+          >
+            Re-read with AI
+          </button>
+        </div>
+      ) : null}
 
       {/* Route */}
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)_minmax(64px,1.1fr)_minmax(0,1fr)] items-start gap-2 px-5">

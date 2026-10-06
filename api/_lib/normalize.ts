@@ -325,7 +325,7 @@ export function buildExtraction(
   const loc = rec(raw.primary_location)
   const price = rec(raw.total_price)
 
-  const det = details(type, rec(raw.details), g)
+  const det = details(type, coerceDetails(type, raw), g)
   const bookingReference = g.id(s(raw.booking_reference, 40), 'booking_reference')
 
   const modelConfidence = clamp01(n(raw.confidence) ?? 0.5)
@@ -355,3 +355,53 @@ function clamp01(x: number): number {
 }
 
 export { domain as normalizeDomain, countryCode as normalizeCountryCode, clamp01 }
+
+/**
+ * Models occasionally return `details` in the wrong shape — an array of flights
+ * or segments, or the fields flattened onto the top level. Reshape it into the
+ * object the type expects instead of silently losing everything.
+ */
+function coerceDetails(type: DocumentType, raw: Raw): Raw {
+  const d = raw.details
+  if (Array.isArray(d)) {
+    const items = d.map(rec).filter((x) => Object.keys(x).length > 0)
+    if (items.length === 0) return {}
+    if (type === 'flight') {
+      // A list of segments …
+      if (items.every((x) => 'departure' in x || 'arrival' in x)) return { ...rec(raw), segments: items }
+      // … or a list of flight objects (e.g. onward + return): merge them.
+      const segments = items.flatMap((x) => (Array.isArray(x.segments) ? x.segments : 'departure' in x ? [x] : []))
+      const first = items[0]
+      return {
+        ...first,
+        segments,
+        pnr: items.map((x) => x.pnr).find((v) => v != null) ?? null,
+        passengers: items.flatMap((x) => (Array.isArray(x.passengers) ? x.passengers : [])),
+      }
+    }
+    return items[0]
+  }
+  const obj = rec(d)
+  if (Object.keys(obj).length > 0) return obj
+  // Fields placed at the top level instead of under `details`.
+  if (type === 'flight' && (Array.isArray(raw.segments) || raw.airline)) return raw
+  if (type === 'hotel' && raw.hotel) return raw
+  return obj
+}
+
+/** True when the type-specific part carries nothing usable (worth one retry). */
+export function isEmptyExtraction(ext: DocumentExtraction): boolean {
+  switch (ext.document_type) {
+    case 'flight':
+      return (ext.details as FlightData).segments.length === 0
+    case 'hotel':
+      return !(ext.details as HotelData).hotel.name
+    case 'train':
+    case 'bus': {
+      const d = ext.details as TrainData | BusData
+      return !d.departure.city && !d.departure.station && !d.arrival.city && !d.arrival.station
+    }
+    default:
+      return false
+  }
+}

@@ -196,12 +196,15 @@ export async function structuredCompletion(params: {
   schemaName: string
   schema: Record<string, unknown>
   maxTokens?: number
+  /** Override the primary model (used for retries). */
+  model?: string
 }): Promise<Record<string, unknown>> {
+  const primary = params.model ?? TEXT_MODEL
   try {
-    return await structuredOnce(TEXT_MODEL, params)
+    return await structuredOnce(primary, params)
   } catch (err) {
-    if (err instanceof HttpError && err.status === 429 && FALLBACK_TEXT_MODEL && FALLBACK_TEXT_MODEL !== TEXT_MODEL) {
-      console.warn(`[groq] ${TEXT_MODEL} rate-limited — using ${FALLBACK_TEXT_MODEL}`)
+    if (err instanceof HttpError && err.status === 429 && FALLBACK_TEXT_MODEL && FALLBACK_TEXT_MODEL !== primary) {
+      console.warn(`[groq] ${primary} rate-limited — using ${FALLBACK_TEXT_MODEL}`)
       try {
         return await structuredOnce(FALLBACK_TEXT_MODEL, params)
       } catch {
