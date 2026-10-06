@@ -121,6 +121,9 @@
   }
   body {
     @apply bg-bg text-ink font-sans antialiased;
+    /* Never let a stray wide element make the page pan sideways on phones —
+       that's what makes fixed bars (bottom nav) drift away. `clip` keeps sticky working. */
+    overflow-x: clip;
     font-feature-settings: 'ss01', 'cv11';
     min-height: 100dvh;
   }

@@ -89,7 +89,7 @@ export function TripEssentials({ trip }: { trip: Trip }) {
 
       {attention ? (
         <p className="mb-3 flex items-center gap-2 rounded-xl bg-warning-bg px-3 py-2 text-[13px] text-warning">
-          <Info className="size-4 shrink-0" aria-hidden /> {plural(attention, 'ticket')} need a quick check.
+          <Info className="size-4 shrink-0" aria-hidden /> {plural(attention, 'ticket')} {attention === 1 ? 'needs' : 'need'} a quick check.
         </p>
       ) : null}
 

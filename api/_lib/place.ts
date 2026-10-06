@@ -218,6 +218,8 @@ export async function getPlaceInfo(place: string): Promise<PlaceInfo> {
   ])
   const info: PlaceInfo = { query: q, weather, news, about }
   // Weather & news go stale quickly; keep them for 20 minutes per warm instance.
-  cache.set(key, info, 20 * 60_000)
+  // Partial/failed lookups are only kept briefly so a transient error doesn't stick.
+  const complete = !!weather && news.length > 0
+  cache.set(key, info, complete ? 20 * 60_000 : 2 * 60_000)
   return info
 }

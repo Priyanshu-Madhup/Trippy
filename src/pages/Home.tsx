@@ -104,7 +104,7 @@ function Dashboard({ next, others }: { next: TripWithStats; others: TripWithStat
 
   return (
     <div className="space-y-10 pb-6">
-      <div className="grid gap-4 lg:grid-cols-[1.55fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <NextTripHero trip={next} />
         {place ? (
           <WeatherCard place={place} info={info} loading={isLoading} />
@@ -115,7 +115,7 @@ function Dashboard({ next, others }: { next: TripWithStats; others: TripWithStat
         )}
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[1.55fr_1fr]">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <TripEssentials trip={next} />
         {place ? <AboutPlace info={info} loading={isLoading} /> : null}
       </div>
@@ -159,7 +159,7 @@ function Dashboard({ next, others }: { next: TripWithStats; others: TripWithStat
 
 function DashboardSkeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.55fr_1fr]" aria-hidden>
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]" aria-hidden>
       <Skeleton className="h-[340px] rounded-[30px] sm:h-[380px]" />
       <Skeleton className="h-[300px] rounded-[26px]" />
     </div>
