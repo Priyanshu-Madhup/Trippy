@@ -13,7 +13,7 @@ import { extractDocument } from './ai'
 import { ApiError, apiFetch } from './api'
 import { backend, type PlaceInput } from './backend'
 import { resolveHotelImage, resolvePlaceImage, resolveProviderLogo } from './resolvers'
-import { refreshTripCover } from './trips'
+import { AUTO_TRIP_NAME, refreshTripCover } from './trips'
 
 export type ProcessingStage = 'reading' | 'identifying' | 'extracting' | 'building' | 'finishing'
 
@@ -304,6 +304,10 @@ export async function updateTripFromTicket(tripId: string): Promise<Trip | null>
       coverQuery = decision.image_query
     }
   }
+
+  // Trips created straight from an upload get named after where they go.
+  const destination = patch.destination ?? trip.destination
+  if (trip.name === AUTO_TRIP_NAME && destination) patch.name = `Trip to ${destination}`
 
   let updated = Object.keys(patch).length ? await backend.updateTrip(trip.id, patch) : trip
 

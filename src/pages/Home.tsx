@@ -16,6 +16,7 @@ import { useTrips } from '@/hooks/useTrips'
 import { useRecentTickets } from '@/hooks/useTickets'
 import { useUI } from '@/hooks/useUI'
 import { useUploads } from '@/hooks/useUpload'
+import { useStartTripFromFiles } from '@/hooks/useAutoTrip'
 import { backend } from '@/services/backend'
 import { enrichMissingVisuals } from '@/services/processing'
 import { formatShort, greeting, todayISO } from '@/utils/date'
@@ -233,15 +234,19 @@ function QuickUpload({ trips }: { trips: TripWithStats[] }) {
 function NoTrips({ onCreate }: { onCreate: () => void }) {
   const qc = useQueryClient()
   const [seeding, setSeeding] = useState(false)
+  const autoTrip = useStartTripFromFiles()
   return (
-    <div className="rounded-[32px] border border-line bg-surface shadow-soft">
+    <div className="rounded-[32px] border border-line bg-surface p-4 shadow-soft sm:p-6">
       <EmptyState
+        className="pb-6 pt-8"
         title="Your next adventure starts here."
-        description="Create a trip and keep every booking, ticket and reservation together."
-        action={
-          <div className="flex flex-col items-center gap-3">
-            <Button size="lg" onClick={onCreate}>
-              <Plus aria-hidden /> Create your first trip
+        description="Drop any ticket or booking confirmation — we’ll create the trip and fill in every detail for you."
+      />
+      <UploadDropzone onFiles={(files) => void autoTrip.start(files)} title="Drop your first ticket" />
+      <div className="flex justify-center pb-2 pt-6">
+          <div className="flex flex-col items-center gap-2 sm:flex-row">
+            <Button variant="secondary" onClick={onCreate}>
+              <Plus aria-hidden /> Create a trip manually
             </Button>
             <Button
               variant="ghost"
@@ -264,8 +269,7 @@ function NoTrips({ onCreate }: { onCreate: () => void }) {
               <Sparkles aria-hidden /> Or explore with sample trips
             </Button>
           </div>
-        }
-      />
+      </div>
     </div>
   )
 }

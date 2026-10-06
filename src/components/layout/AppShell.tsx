@@ -68,7 +68,6 @@ export function AppShell() {
           open={upload.open}
           tripId={upload.tripId}
           onOpenChange={(open) => setUpload((s) => ({ ...s, open }))}
-          onCreateTrip={ui.openCreateTrip}
         />
       </UploadProvider>
     </UIContext.Provider>

@@ -31,6 +31,7 @@ create table if not exists public.profiles (
   updated_at  timestamptz not null default now()
 );
 
+drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
@@ -53,6 +54,9 @@ begin
   return new;
 end;
 $$;
+
+-- Only the auth trigger should run this; don't expose it as an RPC endpoint.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -83,6 +87,7 @@ create table if not exists public.trips (
 
 create index if not exists trips_user_id_idx on public.trips (user_id, start_date);
 
+drop trigger if exists trips_updated_at on public.trips;
 create trigger trips_updated_at
   before update on public.trips
   for each row execute function public.set_updated_at();
@@ -141,6 +146,7 @@ create table if not exists public.tickets (
 create index if not exists tickets_trip_id_idx on public.tickets (trip_id, travel_date);
 create index if not exists tickets_user_id_idx on public.tickets (user_id, created_at desc);
 
+drop trigger if exists tickets_updated_at on public.tickets;
 create trigger tickets_updated_at
   before update on public.tickets
   for each row execute function public.set_updated_at();
@@ -172,45 +178,68 @@ alter table public.tickets     enable row level security;
 alter table public.trip_places enable row level security;
 
 -- profiles
-create policy "profiles: read own"   on public.profiles for select to authenticated using ((select auth.uid()) = id);
+drop policy if exists "profiles: read own" on public.profiles;
+create policy "profiles: read own" on public.profiles for select to authenticated using ((select auth.uid()) = id);
+drop policy if exists "profiles: insert own" on public.profiles;
 create policy "profiles: insert own" on public.profiles for insert to authenticated with check ((select auth.uid()) = id);
+drop policy if exists "profiles: update own" on public.profiles;
 create policy "profiles: update own" on public.profiles for update to authenticated using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
 
 -- trips
-create policy "trips: read own"   on public.trips for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "trips: read own" on public.trips;
+create policy "trips: read own" on public.trips for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "trips: insert own" on public.trips;
 create policy "trips: insert own" on public.trips for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "trips: update own" on public.trips;
 create policy "trips: update own" on public.trips for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "trips: delete own" on public.trips;
 create policy "trips: delete own" on public.trips for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- tickets (must belong to the user AND to a trip the user owns)
+drop policy if exists "tickets: read own" on public.tickets;
 create policy "tickets: read own" on public.tickets for select to authenticated
   using ((select auth.uid()) = user_id);
+drop policy if exists "tickets: insert own" on public.tickets;
 create policy "tickets: insert own" on public.tickets for insert to authenticated
   with check (
     (select auth.uid()) = user_id
     and exists (select 1 from public.trips t where t.id = trip_id and t.user_id = (select auth.uid()))
   );
+drop policy if exists "tickets: update own" on public.tickets;
 create policy "tickets: update own" on public.tickets for update to authenticated
   using ((select auth.uid()) = user_id)
   with check (
     (select auth.uid()) = user_id
     and exists (select 1 from public.trips t where t.id = trip_id and t.user_id = (select auth.uid()))
   );
+drop policy if exists "tickets: delete own" on public.tickets;
 create policy "tickets: delete own" on public.tickets for delete to authenticated
   using ((select auth.uid()) = user_id);
 
 -- trip_places
+drop policy if exists "trip_places: read own" on public.trip_places;
 create policy "trip_places: read own" on public.trip_places for select to authenticated
   using ((select auth.uid()) = user_id);
+drop policy if exists "trip_places: insert own" on public.trip_places;
 create policy "trip_places: insert own" on public.trip_places for insert to authenticated
   with check (
     (select auth.uid()) = user_id
     and exists (select 1 from public.trips t where t.id = trip_id and t.user_id = (select auth.uid()))
   );
+drop policy if exists "trip_places: update own" on public.trip_places;
 create policy "trip_places: update own" on public.trip_places for update to authenticated
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "trip_places: delete own" on public.trip_places;
 create policy "trip_places: delete own" on public.trip_places for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+-- ════════════════════════════════════════════════════════════════════
+-- Data API access — newer projects don't auto-expose SQL-created tables.
+-- Only signed-in users get table privileges; RLS above limits them to their own rows.
+-- ════════════════════════════════════════════════════════════════════
+
+revoke all on public.profiles, public.trips, public.tickets, public.trip_places from anon;
+grant select, insert, update, delete on public.profiles, public.trips, public.tickets, public.trip_places to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════
 -- Storage — private bucket, files at {user_id}/{trip_id}/{ticket_id}/{filename}
@@ -230,16 +259,20 @@ on conflict (id) do update
       allowed_mime_types = excluded.allowed_mime_types;
 
 -- The first folder segment must be the caller's user id.
+drop policy if exists "tickets bucket: read own" on storage.objects;
 create policy "tickets bucket: read own" on storage.objects for select to authenticated
   using (bucket_id = 'tickets' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+drop policy if exists "tickets bucket: upload own" on storage.objects;
 create policy "tickets bucket: upload own" on storage.objects for insert to authenticated
   with check (bucket_id = 'tickets' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+drop policy if exists "tickets bucket: update own" on storage.objects;
 create policy "tickets bucket: update own" on storage.objects for update to authenticated
   using (bucket_id = 'tickets' and (storage.foldername(name))[1] = (select auth.uid())::text)
   with check (bucket_id = 'tickets' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+drop policy if exists "tickets bucket: delete own" on storage.objects;
 create policy "tickets bucket: delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'tickets' and (storage.foldername(name))[1] = (select auth.uid())::text);
 

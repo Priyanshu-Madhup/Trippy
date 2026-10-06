@@ -107,9 +107,11 @@ const alnum = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '')
 class Grounder {
   private hay: string
   private words: Set<string>
+  private source: string
   readonly dropped: string[] = []
 
   constructor(source: string) {
+    this.source = source
     this.hay = alnum(source)
     this.words = new Set(source.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3))
   }
@@ -122,6 +124,17 @@ class Grounder {
     if (this.hay.includes(needle)) return value
     this.dropped.push(field)
     return null
+  }
+
+  /**
+   * Deterministic fallback for explicitly labelled identifiers the model missed,
+   * e.g. "PNR: DYQBNK". Only ever returns text that is printed in the document.
+   */
+  labelled(label: string): string | null {
+    const pattern = new RegExp(String.raw`\b${label}\b\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9]{5,12})\b`, 'i')
+    const value = this.source.match(pattern)?.[1]
+    // Must look like a code (has a digit, or is a 6-letter record locator) — not a plain word.
+    return value && /\d|^[A-Z]{6}$/.test(value) ? value.toUpperCase() : null
   }
 
   /** Keep free text (addresses) only if most of its words appear in the source. */
@@ -183,7 +196,7 @@ function flight(r: Raw, g: Grounder): FlightData {
   return {
     airline: { name: s(airline.name, 120), iata_code: code(airline.iata_code, 2), domain: domain(airline.domain) },
     segments,
-    pnr: g.id(s(r.pnr, 20)?.toUpperCase() ?? null, 'pnr'),
+    pnr: g.id(s(r.pnr, 20)?.toUpperCase() ?? null, 'pnr') ?? g.labelled('PNR'),
     ticket_number: g.id(s(r.ticket_number, 30), 'ticket_number'),
     baggage: s(r.baggage, 120),
     passengers: strArr(r.passengers),
@@ -220,7 +233,7 @@ function train(r: Raw, g: Grounder): TrainData {
     train_number: g.id(s(r.train_number, 20), 'train_number'),
     departure: transitEndpoint(r.departure),
     arrival: transitEndpoint(r.arrival),
-    pnr: g.id(s(r.pnr, 20), 'pnr'),
+    pnr: g.id(s(r.pnr, 20), 'pnr') ?? g.labelled('PNR'),
     coach: g.id(s(r.coach, 12), 'coach'),
     seat: g.id(s(r.seat, 12), 'seat'),
     berth: s(r.berth, 30),
